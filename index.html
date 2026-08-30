@@ -50,7 +50,11 @@ a{color:var(--gold)}
   <p class="hint">Weight the signals. The SAME post scores differently depending on what you're aiming at — that's how it learns <em>for your goal</em>, not a generic "best".</p>
   <div id="goals"></div>
   <button id="saveGoal" class="alt">save goal</button>
+  <button id="loadStarter">◈ load my starter (revenue-first, LinkedIn-led)</button>
+  <button id="importL" class="alt">import ledger…</button>
+  <input type="file" id="importFile" accept="application/json" style="display:none">
   <span class="tag" id="goalTag"></span>
+  <p class="hint" style="margin-top:8px">The starter seeds a real goal + 6 lever-hypotheses for an AI-first sovereign-tools company whose gap is recurring revenue. They're starting guesses — the organ learns which actually win once you log real outcomes.</p>
 </div>
 
 <div class="grid">
@@ -237,6 +241,22 @@ const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAl
 const G = window.GROW;
 const log = (t, c) => { const d = document.createElement('div'); if (c) d.style.color = `var(--${c})`; d.textContent = t; $('#log').prepend(d); };
 
+// ── the grounded STARTER — a real seed for an AI-first sovereign-tools company whose critical
+//    gap is recurring revenue: goal weighted to client-acquisition (revenue + leads), LinkedIn-led,
+//    the proven contrarian/proof/number-led voice, with cross-platform + email tests. These are
+//    HYPOTHESES — the bandit learns which actually win once real outcomes are logged.
+const STARTER = {
+  goal: { revenue: 3, list: 2, engagement: 1, reach: 1 },
+  arms: [
+    { hook: 'contrarian',  time: 'early-am', platform: 'linkedin', cta: 'reply-bait',        angle: 'proof',         price: 'no-price' },
+    { hook: 'number-led',  time: 'lunch',    platform: 'linkedin', cta: 'link-in-comments',  angle: 'proof',         price: 'no-price' },
+    { hook: 'story',       time: 'evening',  platform: 'linkedin', cta: 'dm-me',             angle: 'behind-scenes', price: 'no-price' },
+    { hook: 'bold-claim',  time: 'early-am', platform: 'linkedin', cta: 'free-guide',        angle: 'offer',         price: 'free-then-paid' },
+    { hook: 'contrarian',  time: 'lunch',    platform: 'x',        cta: 'reply-bait',        angle: 'pain',          price: 'no-price' },
+    { hook: 'question',    time: 'evening',  platform: 'email',    cta: 'buy-now',           angle: 'offer',         price: 'anchor-high' },
+  ],
+};
+
 // ── state · IndexedDB (single object store) ──
 let DB, STATE = { goal: { revenue: 3, reach: 1, engagement: 1 }, arms: [] };
 const idb = () => new Promise((res, rej) => { const r = indexedDB.open('fallgrowth', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
@@ -254,6 +274,33 @@ function renderGoals() {
 }
 function goalTag() { const g = Object.entries(STATE.goal).filter(([, w]) => w > 0).map(([k, w]) => `${k}×${w}`).join(' · '); $('#goalTag').textContent = g || '(no goal set)'; }
 $('#saveGoal').onclick = async () => { STATE.goal = {}; $$('#goals input').forEach(i => { const v = +i.value; if (v > 0) STATE.goal[i.dataset.sig] = v; }); await save(); goalTag(); log('goal saved: ' + JSON.stringify(STATE.goal), 'gold'); renderOutcome(); };
+
+// ── load the grounded starter (seed goal + real lever hypotheses) ──
+$('#loadStarter').onclick = async () => {
+  if (STATE.arms.length && !confirm('This adds the starter goal + 6 lever-sets to what you already have. Continue?')) return;
+  STATE.goal = { ...STARTER.goal };
+  let added = 0;
+  for (const l of STARTER.arms) { const id = armId(l); if (!STATE.arms.some(a => a.id === id)) { const r = G.makeArm(id, l); if (r.ok) { STATE.arms.push(r.arm); added++; } } }
+  await save(); renderGoals(); renderBoard(); renderOutcome();
+  log(`starter loaded — goal ${JSON.stringify(STATE.goal)} · ${added} lever-set(s) seeded. Adjust the weights, then "what should I run next?"`, 'good');
+};
+
+// ── import a previously-exported ledger ──
+$('#importL').onclick = () => $('#importFile').click();
+$('#importFile').onchange = (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = async () => {
+    try {
+      const j = JSON.parse(rd.result);
+      if (!j || typeof j !== 'object' || !Array.isArray(j.arms) || typeof j.goal !== 'object') { log('that file is not a FallGrowth ledger', 'bad'); return; }
+      STATE = j; await save(); renderGoals(); renderBoard(); renderOutcome();
+      log('ledger imported: ' + STATE.arms.length + ' lever-set(s)', 'good');
+    } catch (err) { log('import failed: ' + err.message, 'bad'); }
+    e.target.value = '';
+  };
+  rd.readAsText(f);
+};
 
 // ── arms ──
 const armId = l => [l.hook, l.time, l.platform, l.cta, l.angle, l.price].join('/');
