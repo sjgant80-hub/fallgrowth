@@ -1,0 +1,17 @@
+[
+ {
+  "mutation": "> → >=",
+  "snippet": "for (const a of list) { const p = posterior(a, z); if (p.ok && p.mean > bestMean) bestMean",
+  "reason": "bestMean-scan equivalent: > keeps the first max, >= takes the last, but when two means tie the VALUE of bestMean is identical, so the downstream retire test (upper < bestMean) is unchanged on every input."
+ },
+ {
+  "mutation": "< → <=",
+  "snippet": "|| (cand.upper === best.upper && cand.pulls === best.pulls && arm.id < best.arm.id)) best ",
+  "reason": "unique-id equivalent: arm ids are unique within a valid arm set, so this comparison only ever sees distinct ids; < and <= agree on every reachable input (they differ only when ids are equal, which cannot occur)."
+ },
+ {
+  "mutation": "< → <=",
+  "snippet": "if (a.pulls >= minPulls && p.upper < bestMean) retired.push({ id: a.id, mean: p.mean, uppe",
+  "reason": "measure-zero-float equivalent: < and <= differ only for an arm whose confidence CEILING exactly equals the field's best MEAN — a bit-identical float coincidence no constructible outcome sequence (α,β accumulated from [0,1] rewards) produces."
+ }
+]
